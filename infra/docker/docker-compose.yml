@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  bot:
+    build:
+      context: ../../apps/bot
+      dockerfile: Dockerfile
+    env_file:
+      - ../../.env
+    restart: unless-stopped
+
+  analysis:
+    build:
+      context: ../../apps/analysis
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../../.env
+    restart: unless-stopped

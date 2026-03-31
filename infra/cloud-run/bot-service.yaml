@@ -1,0 +1,41 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: discord-knowledge-bot
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+    spec:
+      containerConcurrency: 1
+      containers:
+        - image: asia-northeast1-docker.pkg.dev/project-0be4cbfd-3715-4f3a-945/discord-bot/discord-knowledge-bot:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DATABASE_URL
+                  key: latest
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: DISCORD_TOKEN
+                  key: latest
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: CLIENT_ID
+                  key: latest
+            - name: GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: GUILD_ID
+                  key: latest

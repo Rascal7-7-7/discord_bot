@@ -1,0 +1,28 @@
+{
+  "name": "discord-knowledge-bot",
+  "version": "1.0.0",
+  "description": "Discord Knowledge Bot - 技術情報蓄積・検索Bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "deploy-commands": "tsx src/commands/deploy.ts",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "setup-channels": "tsx src/scripts/setup-channels.ts",
+    "backfill": "tsx src/scripts/backfill.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "cheerio": "^1.2.0",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.10.9",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
