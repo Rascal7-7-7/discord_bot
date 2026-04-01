@@ -63,3 +63,35 @@ CREATE TABLE IF NOT EXISTS sync_states (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_states_guild_channel ON sync_states(guild_id, channel_id);
+
+-- bookmarks: ⭐リアクションによるメッセージブックマーク
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id SERIAL PRIMARY KEY,
+    message_id VARCHAR(20) NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id VARCHAR(20) NOT NULL,
+    guild_id VARCHAR(20) NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(message_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user_guild ON bookmarks(user_id, guild_id);
+
+-- message_tags: メッセージ内の #タグ 自動抽出
+CREATE TABLE IF NOT EXISTS message_tags (
+    id SERIAL PRIMARY KEY,
+    message_id VARCHAR(20) NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    tag VARCHAR(100) NOT NULL,
+    guild_id VARCHAR(20) NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(message_id, tag)
+);
+CREATE INDEX IF NOT EXISTS idx_message_tags_tag_guild ON message_tags(tag, guild_id);
+CREATE INDEX IF NOT EXISTS idx_message_tags_message_id ON message_tags(message_id);
+
+-- weekly_digests: 週次ダイジェスト冪等性管理
+CREATE TABLE IF NOT EXISTS weekly_digests (
+    id SERIAL PRIMARY KEY,
+    guild_id VARCHAR(20) NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+    week_start DATE NOT NULL,
+    posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(guild_id, week_start)
+);

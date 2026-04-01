@@ -12,6 +12,7 @@ import {
 } from '../services/messageService';
 import { askMentor, summarizeContent } from '../services/claudeService';
 import { extractUrls, fetchContent } from '../services/contentService';
+import { extractTags, saveTags } from '../services/tagService';
 
 export const name = Events.MessageCreate;
 
@@ -41,6 +42,12 @@ export async function execute(message: Message): Promise<void> {
       );
     }
     await saveMessage(message);
+
+    // ハッシュタグを抽出してDBに保存
+    const tags = extractTags(message.content);
+    if (tags.length > 0) {
+      await saveTags(message.id, message.guild.id, tags);
+    }
 
     // URL要約（@mentionメッセージは除外して二重応答を防ぐ）
     if (!isMentioned) {

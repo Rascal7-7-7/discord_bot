@@ -10,6 +10,8 @@ interface Config {
   clientId: string;
   guildId: string;
   anthropicApiKey: string;
+  /** 週次ダイジェストの投稿先チャンネルID（未設定時は無効） */
+  digestChannelId?: string;
 }
 
 function requireEnv(key: string): string {
@@ -26,4 +28,5 @@ export const config: Config = {
   clientId: requireEnv('CLIENT_ID'),
   guildId: requireEnv('GUILD_ID'),
   anthropicApiKey: requireEnv('ANTHROPIC_API_KEY'),
+  digestChannelId: process.env['DIGEST_CHANNEL_ID'],
 };

@@ -25,12 +25,13 @@ export async function searchMessages(
     ...keywords.map((kw) => `%${kw}%`),
   ];
 
+  params.push(String(limit));
   const result = await pool.query<SearchResult>(
     `SELECT id, channel_id, guild_id, author_username, content, created_at
      FROM messages
      WHERE guild_id = $1 AND ${whereClause}
      ORDER BY created_at DESC
-     LIMIT ${limit}`,
+     LIMIT $${params.length}`,
     params
   );
 
@@ -52,7 +53,8 @@ export async function getRecentMessages(
     query += ` AND channel_id = $${params.length}`;
   }
 
-  query += ` ORDER BY created_at DESC LIMIT ${limit}`;
+  params.push(String(limit));
+  query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
   const result = await pool.query<SearchResult>(query, params);
   return result.rows;

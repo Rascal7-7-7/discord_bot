@@ -4,12 +4,18 @@ import { data as helpData } from './help';
 import { data as searchData } from './search';
 import { data as recentData } from './recent';
 import { data as summaryData } from './summary';
+import { data as askData } from './ask';
+import { data as bookmarksData } from './bookmarks';
+import { data as statsData } from './stats';
 
 const commands = [
   helpData.toJSON(),
   searchData.toJSON(),
   recentData.toJSON(),
   summaryData.toJSON(),
+  askData.toJSON(),
+  bookmarksData.toJSON(),
+  statsData.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);

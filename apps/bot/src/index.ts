@@ -1,21 +1,26 @@
 import http from 'http';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from './config/env';
 import { testConnection } from './db/pool';
 import * as interactionCreate from './events/interactionCreate';
 import * as messageCreate from './events/messageCreate';
+import * as reactionAdd from './events/reactionAdd';
+import { startDigestScheduler } from './services/digestService';
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
   ],
+  partials: [Partials.Reaction, Partials.Message, Partials.User],
 });
 
 // イベント登録
 client.on(interactionCreate.name, interactionCreate.execute);
 client.on(messageCreate.name, messageCreate.execute);
+client.on(reactionAdd.name, reactionAdd.execute);
 
 client.once('ready', (c) => {
   console.log(`Bot起動完了: ${c.user.tag}`);
@@ -33,6 +38,9 @@ http.createServer((_, res) => {
 async function main(): Promise<void> {
   await testConnection();
   await client.login(config.discordToken);
+  client.once('ready', () => {
+    startDigestScheduler(client, config.guildId);
+  });
 }
 
 main().catch((error) => {

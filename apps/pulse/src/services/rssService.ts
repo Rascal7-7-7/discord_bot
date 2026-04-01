@@ -9,7 +9,8 @@ export interface FeedItem {
 }
 
 /** Node.js 組み込み https で JSON 取得 */
-function httpsGetJson(urlStr: string): Promise<unknown> {
+function httpsGetJson(urlStr: string, redirects = 0): Promise<unknown> {
+  if (redirects > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
     const req = https.get(urlStr, {
       headers: {
@@ -20,7 +21,7 @@ function httpsGetJson(urlStr: string): Promise<unknown> {
     }, (res) => {
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
         req.destroy();
-        httpsGetJson(res.headers.location).then(resolve).catch(reject);
+        httpsGetJson(res.headers.location, redirects + 1).then(resolve).catch(reject);
         return;
       }
       if (res.statusCode && res.statusCode >= 400) {
@@ -38,6 +39,84 @@ function httpsGetJson(urlStr: string): Promise<unknown> {
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('Timeout (20s)')); });
   });
+}
+
+/** Node.js 組み込み https でテキスト（RSS XML等）取得 */
+function httpsGetText(urlStr: string, redirects = 0): Promise<string> {
+  if (redirects > 5) return Promise.reject(new Error('Too many redirects'));
+  return new Promise((resolve, reject) => {
+    const req = https.get(urlStr, {
+      headers: {
+        'User-Agent': 'PulseBot/1.0 (Discord trend bot)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+      timeout: 20000,
+    }, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        req.destroy();
+        httpsGetText(res.headers.location, redirects + 1).then(resolve).catch(reject);
+        return;
+      }
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout (20s)')); });
+  });
+}
+
+/** RSS XML の <item> から指定タグのテキストを取得する */
+function extractXmlTag(item: string, tag: string): string {
+  const re = new RegExp(
+    `<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`,
+    'i'
+  );
+  return (item.match(re)?.[1] ?? '').trim();
+}
+
+/** RSS XML の <link> を取得する（RSS 2.0 / Atom 両対応） */
+function extractXmlLink(item: string): string {
+  // RSS 2.0: <link>https://...</link>
+  const rssLink = extractXmlTag(item, 'link');
+  if (rssLink.startsWith('http')) return rssLink;
+  // Atom: <link href="https://..."/>
+  const atomHref = item.match(/<link[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*\/?>/i)?.[1] ?? '';
+  return atomHref;
+}
+
+/** RSS XML 文字列から FeedItem[] を生成する */
+function parseRssFeed(xml: string, source: string, limit = 10): FeedItem[] {
+  const itemRegex = /<item[\s>][\s\S]*?<\/item>/g;
+  const items: FeedItem[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = itemRegex.exec(xml)) !== null && items.length < limit) {
+    const item = match[0];
+    const title = extractXmlTag(item, 'title');
+    const link = extractXmlLink(item);
+    const description = extractXmlTag(item, 'description')
+      .replace(/<[^>]+>/g, '')
+      .slice(0, 200);
+    const pubDate = extractXmlTag(item, 'pubDate') || extractXmlTag(item, 'published');
+
+    if (!title || !link.startsWith('http')) continue;
+
+    items.push({
+      title,
+      link,
+      summary: description,
+      source,
+      publishedAt: pubDate ? new Date(pubDate) : new Date(),
+    });
+  }
+
+  return items;
 }
 
 // ── Hacker News ────────────────────────────────────────────
@@ -127,6 +206,50 @@ async function fetchGitHubTrending(): Promise<FeedItem[]> {
   });
 }
 
+// ── Reddit r/MachineLearning ───────────────────────────────
+async function fetchRedditML(): Promise<FeedItem[]> {
+  const data = await httpsGetJson(
+    'https://www.reddit.com/r/MachineLearning/hot.json?limit=10'
+  ) as { data?: { children?: { data?: { title?: string; url?: string; selftext?: string; created_utc?: number; score?: number; permalink?: string } }[] } };
+
+  return (data.data?.children ?? []).flatMap((child) => {
+    const post = child.data;
+    if (!post?.title) return [];
+    const link = post.url?.startsWith('http') ? post.url : `https://reddit.com${post.permalink ?? ''}`;
+    return [{
+      title:       post.title,
+      link,
+      summary:     post.selftext ? post.selftext.slice(0, 100) : `Reddit score: ${post.score ?? 0}`,
+      source:      'Reddit r/ML',
+      publishedAt: post.created_utc ? new Date(post.created_utc * 1000) : new Date(),
+    }];
+  });
+}
+
+// ── HackerNoon ─────────────────────────────────────────────
+async function fetchHackerNoon(): Promise<FeedItem[]> {
+  const xml = await httpsGetText('https://hackernoon.com/feed');
+  return parseRssFeed(xml, 'HackerNoon', 10);
+}
+
+// ── TechCrunch ─────────────────────────────────────────────
+async function fetchTechCrunch(): Promise<FeedItem[]> {
+  const xml = await httpsGetText('https://techcrunch.com/feed/');
+  return parseRssFeed(xml, 'TechCrunch', 10);
+}
+
+// ── Ars Technica ───────────────────────────────────────────
+async function fetchArsTechnica(): Promise<FeedItem[]> {
+  const xml = await httpsGetText('https://feeds.arstechnica.com/arstechnica/index');
+  return parseRssFeed(xml, 'Ars Technica', 10);
+}
+
+// ── MIT Technology Review ──────────────────────────────────
+async function fetchMITTechReview(): Promise<FeedItem[]> {
+  const xml = await httpsGetText('https://www.technologyreview.com/feed/');
+  return parseRssFeed(xml, 'MIT Tech Review', 10);
+}
+
 // ── メイン ─────────────────────────────────────────────────
 export async function fetchLatestItems(): Promise<FeedItem[]> {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24時間以内
@@ -136,17 +259,34 @@ export async function fetchLatestItems(): Promise<FeedItem[]> {
     fetchDevTo(),
     fetchLobsters(),
     fetchGitHubTrending(),
+    fetchRedditML(),
+    fetchHackerNoon(),
+    fetchTechCrunch(),
+    fetchArsTechnica(),
+    fetchMITTechReview(),
   ]);
 
   const items: FeedItem[] = [];
-  const labels = ['Hacker News', 'Dev.to', 'Lobste.rs', 'GitHub Trending'];
+  const labels = [
+    'Hacker News',
+    'Dev.to',
+    'Lobste.rs',
+    'GitHub Trending',
+    'Reddit r/ML',
+    'HackerNoon',
+    'TechCrunch',
+    'Ars Technica',
+    'MIT Tech Review',
+  ];
+
   for (const [i, r] of results.entries()) {
     if (r.status === 'fulfilled') {
-      // GitHub Trending は created が7日以内なので cutoff フィルタを緩める
-      const filter = labels[i] === 'GitHub Trending'
+      // GitHub Trending / Reddit は期間が7日以内なので cutoff フィルタを緩める
+      const noFilter = labels[i] === 'GitHub Trending' || labels[i] === 'Reddit r/ML';
+      const filtered = noFilter
         ? r.value
         : r.value.filter((item) => item.publishedAt >= cutoff);
-      items.push(...filter);
+      items.push(...filtered);
     } else {
       console.warn(`RSS取得失敗 [${labels[i]}]:`, (r.reason as Error).message);
     }

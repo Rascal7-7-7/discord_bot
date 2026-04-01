@@ -3,6 +3,9 @@ import * as help from '../commands/help';
 import * as search from '../commands/search';
 import * as recent from '../commands/recent';
 import * as summary from '../commands/summary';
+import * as ask from '../commands/ask';
+import * as bookmarks from '../commands/bookmarks';
+import * as stats from '../commands/stats';
 
 interface Command {
   data: { name: string };
@@ -14,6 +17,9 @@ commands.set(help.data.name, help);
 commands.set(search.data.name, search);
 commands.set(recent.data.name, recent);
 commands.set(summary.data.name, summary);
+commands.set(ask.data.name, ask);
+commands.set(bookmarks.data.name, bookmarks);
+commands.set(stats.data.name, stats);
 
 export const name = Events.InteractionCreate;
 
