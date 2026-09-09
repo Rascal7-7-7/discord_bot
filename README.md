@@ -26,7 +26,7 @@ cd discord-knowledge-bot
 cp .env.example .env
 # .env を編集して各値を設定
 
-cd apps/bot
+cd apps/kura
 npm install
 ```
 
@@ -47,7 +47,7 @@ psql $DATABASE_URL -f packages/db/seed.sql
 ### 3. Slash Command の登録
 
 ```bash
-cd apps/bot
+cd apps/kura
 npm run deploy-commands
 ```
 
@@ -93,7 +93,7 @@ docker compose up --build
 
 ```bash
 # イメージをビルド & プッシュ
-gcloud builds submit apps/bot \
+gcloud builds submit apps/kura \
   --tag gcr.io/PROJECT_ID/discord-knowledge-bot
 
 # Secret Manager に環境変数を登録
