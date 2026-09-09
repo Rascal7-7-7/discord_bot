@@ -51,8 +51,8 @@ export async function postTrends(client: Client, items: AnalyzedItem[]): Promise
       .addFields(
         { name: '対象',     value: tag(item.persona),    inline: true },
         { name: 'ソース',   value: item.source,           inline: true },
-        { name: '⚡ 重要な理由',  value: item.importance },
-        { name: '🚀 活用法',      value: item.application },
+        { name: '⚡ 重要な理由',  value: item.importance  || '—' },
+        { name: '🚀 活用法',      value: item.application || '—' },
       )
       .setFooter({ text: 'Pulse by 破血ホールディングス' })
       .setTimestamp();
