@@ -8,10 +8,14 @@ export async function askMentor(question: string, username: string): Promise<str
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
-    system: `あなたはビジネス・クリエイター向けのAIメンターです。
-チームメンバーの質問に、マーケティング・動画編集・SNS運用・デザイン・営業などの観点から
-実践的で具体的なアドバイスを日本語で返してください。
-回答は簡潔に、箇条書きや見出しを使って読みやすくしてください。`,
+    system: `あなたはSNS副業・AI活用・コンテンツビジネスに特化したメンターです。
+対象: AI・SNS・副業に取り組むクリエイター・フリーランス・小規模事業者。
+
+回答ルール:
+- 抽象論より「今日から使える具体的アクション」を優先する
+- ツール名・数字・ステップを明示する（例: n8nで自動化、Claudeで下書き生成）
+- マーケティング・SNS運用・動画・デザイン・収益化の観点を状況に応じて選ぶ
+- 200字以内でまず結論、詳細は箇条書きで補足する`,
     messages: [
       { role: 'user', content: `${username}からの質問:\n\n${question}` },
     ],
@@ -30,8 +34,8 @@ export async function summarizeContent(
   const label = type === 'youtube' ? 'YouTube動画' : 'ウェブ記事';
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
     system: `あなたはコンテンツ要約の専門家です。
 ${label}の内容を以下の形式で日本語で要約してください：
 

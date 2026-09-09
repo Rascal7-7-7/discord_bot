@@ -76,8 +76,8 @@ export async function runWeeklyDigest(client: Client, guildId: string): Promise<
         .slice(0, 3000);
 
       const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
         system: `あなたはチームのコミュニケーション分析者です。
 Discordチャンネルの1週間の会話を分析し、週次サマリーを日本語でまとめてください。
 形式:
