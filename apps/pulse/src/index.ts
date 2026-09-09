@@ -55,8 +55,8 @@ async function main(): Promise<void> {
   await new Promise<void>((resolve) => client.once('clientReady', () => resolve()));
   console.log(`[Pulse] 起動完了: ${client.user!.tag}`);
 
-  // 毎日 9:00 と 21:00 に実行（JST = UTC+9）
-  cron.schedule('0 0,12 * * *', runTrendReport, { timezone: 'Asia/Tokyo' });
+  // 毎日 9:00 と 21:00 に実行（JST）
+  cron.schedule('0 9,21 * * *', runTrendReport, { timezone: 'Asia/Tokyo' });
   console.log('[Pulse] スケジュール設定完了（毎日 9:00 / 21:00 JST）');
 
   // 起動直後に1回実行
