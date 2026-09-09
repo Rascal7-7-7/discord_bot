@@ -1,4 +1,5 @@
 import https from 'https';
+import { config } from '../config/env';
 
 export interface FeedItem {
   title: string;
@@ -9,19 +10,20 @@ export interface FeedItem {
 }
 
 /** Node.js 組み込み https で JSON 取得 */
-function httpsGetJson(urlStr: string, redirects = 0): Promise<unknown> {
+function httpsGetJson(urlStr: string, redirects = 0, extraHeaders: Record<string, string> = {}): Promise<unknown> {
   if (redirects > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
     const req = https.get(urlStr, {
       headers: {
         'User-Agent': 'PulseBot/1.0 (Discord trend bot)',
         'Accept': 'application/json',
+        ...extraHeaders,
       },
       timeout: 20000,
     }, (res) => {
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
         req.destroy();
-        httpsGetJson(res.headers.location, redirects + 1).then(resolve).catch(reject);
+        httpsGetJson(res.headers.location, redirects + 1, extraHeaders).then(resolve).catch(reject);
         return;
       }
       if (res.statusCode && res.statusCode >= 400) {
@@ -191,7 +193,9 @@ async function fetchGitHubTrending(): Promise<FeedItem[]> {
     .toISOString().slice(0, 10); // YYYY-MM-DD
 
   const data = await httpsGetJson(
-    `https://api.github.com/search/repositories?q=topic:llm+topic:ai+created:%3E${since}&sort=stars&order=desc&per_page=10`
+    `https://api.github.com/search/repositories?q=topic:llm+topic:ai+created:%3E${since}&sort=stars&order=desc&per_page=10`,
+    0,
+    { Authorization: `token ${config.githubToken}` }
   ) as { items?: { name?: string; full_name?: string; html_url?: string; description?: string; stargazers_count?: number; pushed_at?: string }[] };
 
   return (data.items ?? []).flatMap((repo) => {
@@ -202,26 +206,6 @@ async function fetchGitHubTrending(): Promise<FeedItem[]> {
       summary:     repo.description ?? `Stars: ${repo.stargazers_count ?? 0}`,
       source:      'GitHub Trending',
       publishedAt: repo.pushed_at ? new Date(repo.pushed_at) : new Date(),
-    }];
-  });
-}
-
-// ── Reddit r/MachineLearning ───────────────────────────────
-async function fetchRedditML(): Promise<FeedItem[]> {
-  const data = await httpsGetJson(
-    'https://www.reddit.com/r/MachineLearning/hot.json?limit=10'
-  ) as { data?: { children?: { data?: { title?: string; url?: string; selftext?: string; created_utc?: number; score?: number; permalink?: string } }[] } };
-
-  return (data.data?.children ?? []).flatMap((child) => {
-    const post = child.data;
-    if (!post?.title) return [];
-    const link = post.url?.startsWith('http') ? post.url : `https://reddit.com${post.permalink ?? ''}`;
-    return [{
-      title:       post.title,
-      link,
-      summary:     post.selftext ? post.selftext.slice(0, 100) : `Reddit score: ${post.score ?? 0}`,
-      source:      'Reddit r/ML',
-      publishedAt: post.created_utc ? new Date(post.created_utc * 1000) : new Date(),
     }];
   });
 }
@@ -259,7 +243,6 @@ export async function fetchLatestItems(): Promise<FeedItem[]> {
     fetchDevTo(),
     fetchLobsters(),
     fetchGitHubTrending(),
-    fetchRedditML(),
     fetchHackerNoon(),
     fetchTechCrunch(),
     fetchArsTechnica(),
@@ -272,7 +255,6 @@ export async function fetchLatestItems(): Promise<FeedItem[]> {
     'Dev.to',
     'Lobste.rs',
     'GitHub Trending',
-    'Reddit r/ML',
     'HackerNoon',
     'TechCrunch',
     'Ars Technica',
@@ -281,8 +263,7 @@ export async function fetchLatestItems(): Promise<FeedItem[]> {
 
   for (const [i, r] of results.entries()) {
     if (r.status === 'fulfilled') {
-      // GitHub Trending / Reddit は期間が7日以内なので cutoff フィルタを緩める
-      const noFilter = labels[i] === 'GitHub Trending' || labels[i] === 'Reddit r/ML';
+      const noFilter = labels[i] === 'GitHub Trending';
       const filtered = noFilter
         ? r.value
         : r.value.filter((item) => item.publishedAt >= cutoff);

@@ -8,6 +8,7 @@ interface Config {
   anthropicApiKey: string;
   trendChannelId: string;
   logChannelId: string;
+  githubToken: string;
 }
 
 function requireEnv(key: string): string {
@@ -21,4 +22,5 @@ export const config: Config = {
   anthropicApiKey: requireEnv('ANTHROPIC_API_KEY'),
   trendChannelId:  requireEnv('PULSE_TREND_CHANNEL_ID'),
   logChannelId:    requireEnv('PULSE_LOG_CHANNEL_ID'),
+  githubToken:     requireEnv('GITHUB_TOKEN'),
 };
